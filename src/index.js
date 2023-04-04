@@ -1,94 +1,118 @@
-'use strict';
-
 import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
-window.Webflow = window.Webflow || [];
-window.Webflow.push(() => {
-  init3d();
-});
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { TextureLoader } from 'three';
 
-function init3d() {
-  console.log('init 3d is working');
-  const viewPort = document.querySelector('[data-3d="c"]');
-  console.log(viewPort);
-
-  // renderer
-  const renderer = new THREE.WebGL1Renderer();
-  renderer.setSize(viewPort.clientWidth, viewPort.clientHeight); // fixed typo 'clientHight' to 'clientHeight'
-  viewPort.appendChild(renderer.domElement);
-  // camera
-  const camera = new THREE.PerspectiveCamera(
-    75,
-    viewPort.clientWidth / viewPort.clientHeight,
-    0.1,
-    100
-  );
-  camera.position.z = 1;
-  //scene
-  const scene = new THREE.Scene();
-
-  // object
-  const geometry = new THREE.BoxGeometry(2, 2, 2);
-  const material = new THREE.MeshStandardMaterial({
-    color: 0xffffff, // white color
-    metalness: 1, // metalness value of 1 makes it fully metallic
-    roughness: 0.2, // low roughness value makes it look smoother
-  });
-  const cube = new THREE.Mesh(geometry, material);
-  console.log(cube);
-  scene.add(cube);
-
-  // Rendering function
-  function animate() {
-    renderer.render(scene, camera);
-    requestAnimationFrame(animate); // added requestAnimationFrame to create an animation loop
-  }
-  animate();
-}
-
-/*import * as THREE from 'three';
+/* start of must have oczywiscie import three to podstawa*/
 
 window.Webflow ||= [];
 window.Webflow.push(() => {
-  init3d();
+  console.log('hello');
+  init3D();
 });
 
-function init3d() {
-  console.log('init 3d is working');
-  const viewPort = document.querySelector('[data-3d="c"]');
-  console.log(viewPort);
+// Init Function
+function init3D() {
+  // select container
+  const viewport = document.querySelector('[data-3d="c"]');
+  // console.log(viewport);
 
-  // renderer
-  const renderer = new THREE.WebGL1Renderer();
-  renderer.setSize(viewPort.clientWidth, viewPort.clientHeight);
-  viewPort.appendChild(renderer.domElement);
-  // camera
+  // create scened and renderer and camera
+  const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(
     75,
-    viewPort.clientWidth / viewPort.clientHight,
+    window.innerWidth / window.innerHeight,
     0.1,
-    100
+    1000
   );
-  camera.position.z = 1;
-  //scene
-  const scene = new THREE.Scene();
+  const renderer = new THREE.WebGLRenderer();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  viewport.appendChild(renderer.domElement);
 
-  // object
-  const geometry = new THREE.BoxGeometry(2, 2, 2);
-  const material = new THREE.MeshStandardMaterial({
-    color: 0xffffff, // white color
-    metalness: 1, // metalness value of 1 makes it fully metallic
-    roughness: 0.2, // low roughness value makes it look smoother
-  });
+  // add an object
+  const geometry = new THREE.BoxGeometry();
+  const material = new THREE.MeshNormalMaterial();
   const cube = new THREE.Mesh(geometry, material);
+  const cubeTwo = new THREE.Mesh(geometry, material);
+
+  cube.position.y = -1.5;
+  cubeTwo.position.x = 3;
 
   scene.add(cube);
+  scene.add(cubeTwo);
 
-  // Rendering function
-  function render3d() {
+  // add controls
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.autoRotate = true;
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.05;
+
+  camera.position.z = 3;
+
+  function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+
+    // cube.rotation.x += 0.01;
+    // cube.rotation.y += 0.01;
     renderer.render(scene, camera);
   }
-  render3d();
+
+  animate();
+
+  /*koniec must have początke wczytywania 3d z np blendera */
+
+  // --- load 3d async
+  const assets = load();
+  assets.then(data => {
+    console.log(data, data.robot);
+
+    data.robot.traverse(child => {
+      if (child.isMesh) {
+        child.material = new THREE.MeshBasicMaterial();
+        child.material.map = data.texture;
+      }
+    });
+
+    data.robot.position.y = -1;
+    scene.add(data.robot);
+  });
 }
 
-*/
+/* Loader Functions  Wgrywanie przez webflow i objectu 3d do webflow*/
+
+async function load() {
+  const robot = await loadModel(
+    'https://uploads-ssl.webflow.com/64102f194260e3387db26189/64108688b73a86e15101dad4_robot.glb.txt'
+  );
+
+  const texture = await loadTexture(
+    'https://uploads-ssl.webflow.com/64102f194260e3387db26189/6410867a42a4acda86412cc4_robot-texture.png'
+  );
+
+  return { robot, texture };
+}
+
+const textureLoader = new TextureLoader();
+const modelLoader = new GLTFLoader();
+
+function loadTexture(url) {
+  return new Promise(resolve => {
+    textureLoader.load(url, data => {
+      data.needsUpdate = true;
+      data.flipY = false;
+
+      resolve(data);
+    });
+  });
+}
+
+function loadModel(url, id) {
+  return new Promise((resolve, reject) => {
+    modelLoader.load(url, gltf => {
+      const result = gltf.scene;
+      resolve(result);
+    });
+  });
+}
